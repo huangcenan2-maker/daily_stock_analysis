@@ -93,7 +93,11 @@ class TushareFetcher(BaseFetcher):
         """
         初始化 Tushare API
         
-        如果 Token 未配置，此数据源将不可用
+        支持官方 Tushare 和第三方 Tushare 服务（如南风乾坤）
+        
+        第三方服务配置：
+        - TUSHARE_TOKEN: 你的 Token
+        - TUSHARE_API_URL: 第三方服务 URL (如 http://lianghua.nanyangqiankun.top)
         """
         config = get_config()
         
@@ -104,18 +108,31 @@ class TushareFetcher(BaseFetcher):
         try:
             import tushare as ts
             
-            # Set Token
-            ts.set_token(config.tushare_token)
+            # Check if using custom API URL (第三方服务)
+            custom_api_url = os.getenv('TUSHARE_API_URL', '').strip()
             
-            # Get API instance
-            self._api = ts.pro_api()
-            
-            # Fix: tushare SDK 1.4.x hardcodes api.waditu.com/dataapi which may
-            # be unavailable (503). Monkey-patch the query method to use the
-            # official api.tushare.pro endpoint which posts to root URL.
-            self._patch_api_endpoint(config.tushare_token)
-
-            logger.info("Tushare API 初始化成功")
+            if custom_api_url:
+                # 第三方 Tushare 服务初始化（如南风乾坤）
+                logger.info(f"检测到自定义 Tushare API URL: {custom_api_url}")
+                
+                # 初始化 pro_api (不设置默认 token)
+                self._api = ts.pro_api()
+                
+                # 关键：设置内部变量以支持第三方服务
+                # 这是第三方服务要求的特殊初始化方式
+                self._api._DataApi__token = config.tushare_token
+                self._api._DataApi__http_url = custom_api_url
+                
+                logger.info(f"Tushare API 初始化成功 (第三方服务: {custom_api_url})")
+            else:
+                # 官方 Tushare 初始化
+                ts.set_token(config.tushare_token)
+                self._api = ts.pro_api()
+                
+                # Patch to use official endpoint (绕过 SDK 硬编码的失效地址)
+                self._patch_api_endpoint(config.tushare_token)
+                
+                logger.info("Tushare API 初始化成功 (官方服务)")
             
         except Exception as e:
             logger.error(f"Tushare API 初始化失败: {e}")
