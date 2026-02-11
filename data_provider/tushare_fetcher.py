@@ -115,8 +115,8 @@ class TushareFetcher(BaseFetcher):
                 # 第三方 Tushare 服务初始化（如南风乾坤）
                 logger.info(f"检测到自定义 Tushare API URL: {custom_api_url}")
                 
-                # 初始化 pro_api (不设置默认 token)
-                self._api = ts.pro_api()
+                # 初始化 pro_api (传入 token)
+                self._api = ts.pro_api(config.tushare_token)
                 
                 # 关键：设置内部变量以支持第三方服务
                 # 这是第三方服务要求的特殊初始化方式
